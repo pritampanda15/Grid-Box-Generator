@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grid Box Generator</title>
+    <!-- Meta tags for responsiveness -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- Bootstrap CSS CDN -->
+    <link
+      rel="stylesheet"
+      href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+    />
+
+    <!-- Optional: Include your custom CSS here -->
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+        .container {
+            margin-top: 50px;
+        }
+        .custom-file-label::after {
+            content: "Browse";
+        }
+        .footer {
+            margin-top: 50px;
+            padding: 20px 0;
+            background-color: #343a40;
+            color: #ffffff;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <a class="navbar-brand" href="#">Grid Box Generator</a>
+        <button
+          class="navbar-toggler"
+          type="button"
+          data-toggle="collapse"
+          data-target="#navbarNav"
+          aria-controls="navbarNav"
+          aria-expanded="false"
+          aria-label="Toggle navigation"
+        >
+            <span class="navbar-toggler-icon"></span>
+        </button>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container">
+        <!-- Upload Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3>Upload Protein PDB File</h3>
+            </div>
+            <div class="card-body">
+                <form id="upload-form" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <div class="custom-file">
+                            <input
+                              type="file"
+                              class="custom-file-input"
+                              id="pdb-file"
+                              name="file"
+                            />
+                            <label class="custom-file-label" for="pdb-file">
+                                Choose file
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        Upload
+                    </button>
+                    <p id="upload-response" class="mt-3 text-success"></p>
+                </form>
+            </div>
+        </div>
+
+        <!-- Grid Generation Section -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h3>Generate Grid Box</h3>
+            </div>
+            <div class="card-body">
+                <form id="grid-form">
+                    <div class="form-group">
+                        <label for="mode">Mode:</label>
+                        <select id="mode" name="mode" class="form-control">
+                            <option value="blind">Blind Docking</option>
+                            <option value="targeted">Targeted Docking</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="residues"
+                          >Residues (for targeted docking, format: A:45, B:67):</label
+                        >
+                        <input
+                          type="text"
+                          id="residues"
+                          name="residues"
+                          class="form-control"
+                          placeholder="Enter residues"
+                        />
+                    </div>
+                    <button type="submit" class="btn btn-success">
+                        Generate Grid
+                    </button>
+                    <p id="grid-response" class="mt-3 text-success"></p>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+        &copy; 2023 Grid Box Generator. All rights reserved.
+    </div>
+
+    <!-- Bootstrap JS and dependencies -->
+    <script
+      src="https://code.jquery.com/jquery-3.5.1.slim.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"
+      crossorigin="anonymous"
+    ></script>
+    <script
+      src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"
+      crossorigin="anonymous"
+    ></script>
+
+    <!-- Custom JavaScript -->
+    <script>
+        // Update the label of the custom file input when a file is selected
+        $('#pdb-file').on('change', function() {
+            var fileName = $(this).val().split('\\').pop();
+            $(this).next('.custom-file-label').html(fileName);
+        });
+
+        // Handle the file upload
+        document.getElementById('upload-form').onsubmit = async (event) => {
+            event.preventDefault();
+
+            const fileInput = document.getElementById('pdb-file');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                document.getElementById('upload-response').textContent = 'Please select a file.';
+                document.getElementById('upload-response').classList.add('text-danger');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    document.getElementById('upload-response').textContent = result.message || "File uploaded successfully!";
+                    document.getElementById('upload-response').classList.remove('text-danger');
+                    document.getElementById('upload-response').classList.add('text-success');
+                    // Save the file path returned by the server
+                    window.uploadedFilePath = result.filepath;
+                } else {
+                    document.getElementById('upload-response').textContent = result.error || "Error occurred during upload!";
+                    document.getElementById('upload-response').classList.remove('text-success');
+                    document.getElementById('upload-response').classList.add('text-danger');
+                }
+            } catch (error) {
+                console.error("Error during file upload:", error);
+                document.getElementById('upload-response').textContent = "An error occurred during file upload.";
+                document.getElementById('upload-response').classList.add('text-danger');
+            }
+        };
+
+        // Handle the grid generation
+        document.getElementById('grid-form').onsubmit = async (event) => {
+            event.preventDefault(); // Prevent form submission from reloading the page
+
+            const mode = document.getElementById('mode').value;
+            const residues = document.getElementById('residues').value;
+
+            if (!window.uploadedFilePath) {
+                document.getElementById('grid-response').textContent = "Please upload a PDB file first.";
+                document.getElementById('grid-response').classList.add('text-danger');
+                return;
+            }
+
+            try {
+                const response = await fetch('/grid', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filepath: window.uploadedFilePath, // Use the uploaded file path
+                        mode: mode,
+                        residues: residues ? residues.split(',') : [], // Convert residues to an array
+                    }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    const message = result.message || "Grid generated successfully!";
+                    document.getElementById('grid-response').innerHTML = `
+                        ${message}<br>
+                        Configuration file: <a href="/download/${result.config_file}" target="_blank">${result.config_file}</a>
+                    `;
+                    document.getElementById('grid-response').classList.remove('text-danger');
+                    document.getElementById('grid-response').classList.add('text-success');
+                } else {
+                    document.getElementById('grid-response').textContent = result.error || "Error occurred!";
+                    document.getElementById('grid-response').classList.remove('text-success');
+                    document.getElementById('grid-response').classList.add('text-danger');
+                }
+            } catch (error) {
+                console.error("Error during grid generation:", error);
+                document.getElementById('grid-response').textContent = "An error occurred. Check the console for details.";
+                document.getElementById('grid-response').classList.add('text-danger');
+            }
+        };
+    </script>
+</body>
+</html>
