@@ -247,5 +247,5 @@ This tool is particularly useful for preparing files for AutoDock Vina and simil
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("Created by [Your Name]")
+st.sidebar.markdown("Created by Pritam Kumar Panda @Stanford University")
 st.sidebar.markdown("[GitHub Repository](https://github.com/pritampanda15)")
